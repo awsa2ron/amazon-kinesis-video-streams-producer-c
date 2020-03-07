@@ -4,7 +4,8 @@ project(KinesisVideoProducerC LANGUAGES C)
 # User Flags
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-option(BUILD_OPENSSL "If building dependencies, whether or not building openssl from source" OFF)
+option(BUILD_OPENSSL "If building dependencies, whether or not building openssl from source" ON)
+option(BUILD_MBEDTLS "If building dependencies, whether or not building mebedtls from source" OFF)
 OPTION(BUILD_COMMON_LWS "Whether or not to build ProducerC libwebsockets common library" OFF)
 OPTION(BUILD_COMMON_CURL "Whether or not to build ProducerC curl common library" ON)
 option(BUILD_OPENSSL_PLATFORM "If buildng OpenSSL what is the target platform" OFF)
@@ -50,6 +51,7 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${KINESIS_VIDEO_OPEN_SOURCE_SRC}/lib/pkgconfig")
+set(CMAKE_PREFIX_PATH ${KINESIS_VIDEO_OPEN_SOURCE_SRC})
 
 message(STATUS "Kinesis Video PIC path is ${KINESIS_VIDEO_PIC_SRC}")
 message(STATUS "Kinesis Video Producer path is ${KINESIS_VIDEO_PRODUCER_C_SRC}")
@@ -92,7 +94,6 @@ if(BUILD_DEPENDENCIES)
       endif()
     endif()
     set(OPENSSL_ROOT_DIR ${OPEN_SRC_INSTALL_PREFIX})
-    set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${OPENSSL_ROOT_DIR}/lib/pkgconfig")
 
   else()
     if(EXISTS ${OPEN_SOURCE_DIR}/libopenssl)
@@ -104,6 +105,30 @@ if(BUILD_DEPENDENCIES)
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
       set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+    endif()
+  endif()
+
+  if(BUILD_MBEDTLS)
+    if(NOT EXISTS ${OPEN_SOURCE_DIR}/libmbedtls)
+      # build mbedtls
+      configure_file(
+              ${CMAKE_SOURCE_DIR}/cmake-scripts/libmbedtls-CMakeLists.txt
+              ${OPEN_SOURCE_DIR}/libmbedtls/CMakeLists.txt COPYONLY)
+      execute_process(
+              COMMAND ${CMAKE_COMMAND}
+                -G ${CMAKE_GENERATOR} .
+              RESULT_VARIABLE result
+              WORKING_DIRECTORY ${OPEN_SOURCE_DIR}/libmbedtls)
+      if(result)
+        message(FATAL_ERROR "CMake step for libmbedtls failed: ${result}")
+      endif()
+      execute_process(
+              COMMAND ${CMAKE_COMMAND} --build .
+              RESULT_VARIABLE result
+              WORKING_DIRECTORY ${OPEN_SOURCE_DIR}/libmbedtls)
+      if(result)
+        message(FATAL_ERROR "CMake step for libmbedtls failed: ${result}")
+      endif()
     endif()
   endif()
 
@@ -138,7 +163,8 @@ if(BUILD_DEPENDENCIES)
       ${OPEN_SOURCE_DIR}/libcurl/CMakeLists.txt COPYONLY)
     execute_process(
       COMMAND ${CMAKE_COMMAND}
-            -DOPEN_SRC_INSTALL_PREFIX=${OPEN_SRC_INSTALL_PREFIX}
+            -DBUILD_OPENSSL=${BUILD_OPENSSL}
+            -DBUILD_MBEDTLS=${BUILD_MBEDTLS}
             -G ${CMAKE_GENERATOR} .
       RESULT_VARIABLE result
       WORKING_DIRECTORY ${OPEN_SOURCE_DIR}/libcurl)
