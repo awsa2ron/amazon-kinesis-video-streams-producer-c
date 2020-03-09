@@ -292,6 +292,12 @@ include_directories(${KINESIS_VIDEO_OPEN_SOURCE_SRC}/include)
 
 add_subdirectory(${KINESIS_VIDEO_PIC_SRC} ./kvspic EXCLUDE_FROM_ALL)
 
+# use openssl by default
+set(CPRODUCER_COMMON_TLS_OPTION KVS_USE_OPENSSL)
+if (BUILD_MBEDTLS)
+    set(CPRODUCER_COMMON_TLS_OPTION KVS_USE_MBEDTLS)
+endif()
+
 if(BUILD_COMMON_LWS)
     add_library(kvsCommonLws STATIC ${KVS_COMMON_SOURCE_FILES_BASE} ${KVS_COMMON_SOURCE_FILES_LWS})
     target_compile_definitions(kvsCommonLws PRIVATE KVS_BUILD_WITH_LWS=1)
@@ -303,13 +309,21 @@ if(BUILD_COMMON_LWS)
             ${LIBCURL_LIBRARIES})
 endif()
 
+find_library(Mbedtls
+        NAMES mbedtls
+        REQUIRED)
+find_library(Mbedcrypto
+        NAMES mbedcrypto
+        REQUIRED)
 # producer only uses curl right now
 add_library(kvsCommonCurl STATIC ${KVS_COMMON_SOURCE_FILES_BASE} ${KVS_COMMON_SOURCE_FILES_CURL})
-target_compile_definitions(kvsCommonCurl PRIVATE KVS_BUILD_WITH_CURL=1)
+target_compile_definitions(kvsCommonCurl PRIVATE KVS_BUILD_WITH_CURL ${CPRODUCER_COMMON_TLS_OPTION})
 target_link_libraries(kvsCommonCurl
         ${Jsmn}
         ${OPENSSL_CRYPTO_LIBRARY}
         ${OPENSSL_SSL_LIBRARY}
+        ${Mbedtls}
+        ${Mbedcrypto}
         ${LIBCURL_LIBRARIES})
 
 add_library(cproducer SHARED ${PRODUCER_C_SOURCE_FILES})

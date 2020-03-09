@@ -13,9 +13,15 @@ extern "C" {
 ////////////////////////////////////////////////////
 // Project include files
 ////////////////////////////////////////////////////
+#if defined(KVS_USE_OPENSSL)
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <openssl/evp.h>
+#elif defined(KVS_USE_MBEDTLS)
+#include "mbedtls/sha256.h"
+#include <mbedtls/md.h>
+#endif
+
 #if defined(KVS_BUILD_WITH_LWS)
 #include <libwebsockets.h>
 #endif

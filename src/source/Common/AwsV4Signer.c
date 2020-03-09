@@ -19,9 +19,9 @@ STATUS generateAwsSigV4Signature(PRequestInfo pRequestInfo, PCHAR dateTimeStr, B
             scratchLen, curSize, hmacSize, hexHmacLen;
     PCHAR pScratchBuf = NULL, pCredentialScope = NULL, pUrlEncodedCredentials = NULL,
             pSignedStr = NULL, pSignedHeaders = NULL;
-    CHAR requestHexSha256[2 * SHA256_DIGEST_LENGTH + 1];
-    BYTE hmac[EVP_MAX_MD_SIZE];
-    CHAR hexHmac[EVP_MAX_MD_SIZE * 2 + 1];
+    CHAR requestHexSha256[2 * KVS_SHA256_DIGEST_LENGTH + 1];
+    BYTE hmac[KVS_EVP_MAX_MD_SIZE];
+    CHAR hexHmac[KVS_EVP_MAX_MD_SIZE * 2 + 1];
 
     CHK(pRequestInfo != NULL && pRequestInfo->pAwsCredentials != NULL &&
         ppSigningInfo != NULL && pSigningInfoLen != NULL, STATUS_NULL_ARG);
@@ -463,7 +463,7 @@ STATUS generateCanonicalRequestString(PRequestInfo pRequestInfo, PCHAR pRequestS
                  MAX_URI_CHAR_LEN + 1 +
                  itemCount * (MAX_REQUEST_HEADER_NAME_LEN + 1 + MAX_REQUEST_HEADER_VALUE_LEN + 1) +
                  itemCount * (MAX_REQUEST_HEADER_NAME_LEN + 1) +
-                 SHA256_DIGEST_LENGTH * 2 + 1;
+                 KVS_SHA256_DIGEST_LENGTH * 2 + 1;
 
     // See if we only are interested in the size
     CHK(pRequestStr != NULL, retStatus);
@@ -525,7 +525,7 @@ STATUS generateCanonicalRequestString(PRequestInfo pRequestInfo, PCHAR pRequestS
     curLen += len + 1;
 
     // Generate the hex encoded hash
-    len = SHA256_DIGEST_LENGTH * 2;
+    len = KVS_SHA256_DIGEST_LENGTH * 2;
     CHK(curLen + len <= requestLen, STATUS_BUFFER_TOO_SMALL);
     if (pRequestInfo->body == NULL) {
         // Streaming treats this portion as if the body were empty
@@ -682,16 +682,22 @@ STATUS hexEncodedSha256(PBYTE pMessage, UINT32 size, PCHAR pEncodedHash)
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
-    BYTE hash[SHA256_DIGEST_LENGTH];
-    UINT32 encodedSize = SHA256_DIGEST_LENGTH * 2 + 1;
+    BYTE hash[KVS_SHA256_DIGEST_LENGTH];
+    UINT32 encodedSize = KVS_SHA256_DIGEST_LENGTH * 2 + 1;
 
     CHK(pMessage != NULL && pEncodedHash != NULL, STATUS_NULL_ARG);
 
+#if defined(KVS_USE_OPENSSL)
     // Generate the SHA256 of the message first
     SHA256(pMessage, size, hash);
+#elif defined(KVS_USE_MBEDTLS)
+    mbedtls_sha256(pMessage, size, hash, 0);
+#else
+    DLOGE("No TLS library configured");
+#endif
 
     // Hex encode lower case
-    CHK_STATUS(hexEncodeCase(hash, SHA256_DIGEST_LENGTH, pEncodedHash, &encodedSize, FALSE));
+    CHK_STATUS(hexEncodeCase(hash, KVS_SHA256_DIGEST_LENGTH, pEncodedHash, &encodedSize, FALSE));
 
 CleanUp:
 
@@ -725,6 +731,7 @@ STATUS generateRequestHmac(PBYTE key, UINT32 keyLen, PBYTE message, UINT32 messa
 {
     ENTERS();
     STATUS retStatus = STATUS_SUCCESS;
+#if defined(KVS_USE_OPENSSL)
     UINT32 hmacLen;
     EVP_MD* pEvp;
 
@@ -738,8 +745,17 @@ STATUS generateRequestHmac(PBYTE key, UINT32 keyLen, PBYTE message, UINT32 messa
     CHK(NULL != HMAC(pEvp, key, (INT32) keyLen, message, messageLen, outBuffer, &hmacLen), STATUS_HMAC_GENERATION_ERROR);
 
     *pHmacLen = hmacLen;
+#elif defined(KVS_USE_MBEDTLS)
+    CHK(0 == mbedtls_md_hmac(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), key, keyLen, message, messageLen, outBuffer),
+        STATUS_HMAC_GENERATION_ERROR);
+    *pHmacLen= mbedtls_md_get_size(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256));
+#else
+    DLOGE("No TLS library configured");
+#endif
 
 CleanUp:
+
+    CHK_LOG_ERR(retStatus);
 
     LEAVES();
     return retStatus;
