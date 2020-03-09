@@ -4,7 +4,7 @@ project(KinesisVideoProducerC LANGUAGES C)
 # User Flags
 option(ADD_MUCLIBC "Add -muclibc c flag" OFF)
 option(BUILD_DEPENDENCIES "Whether or not to build depending libraries from source" ON)
-option(BUILD_MBEDTLS "If building dependencies, whether or not building mebedtls from source" OFF)
+option(BUILD_MBEDTLS "If building dependencies, whether or not building mebedtls from source" ON)
 OPTION(BUILD_COMMON_CURL "Whether or not to build ProducerC curl common library" ON)
 
 # Developer Flags
