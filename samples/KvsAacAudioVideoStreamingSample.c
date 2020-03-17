@@ -141,6 +141,23 @@ CleanUp:
     return (PVOID) (ULONG_PTR) retStatus;
 }
 
+VOID myLoggerLogPrintFn(UINT32 level, PCHAR tag, PCHAR fmt, ...)
+{
+    CHAR logFmtString[MAX_LOG_FORMAT_LENGTH + 1];
+    UINT32 logLevel = GET_LOGGER_LOG_LEVEL();
+
+    UNUSED_PARAM(tag);
+
+    if (level >= logLevel) {
+        addLogMetadata(logFmtString, (UINT32) ARRAY_SIZE(logFmtString), fmt, level);
+
+        va_list valist;
+        va_start(valist, fmt);
+        vprintf(logFmtString, valist);
+        va_end(valist);
+    }
+}
+
 INT32 main(INT32 argc, CHAR *argv[])
 {
     PDeviceInfo pDeviceInfo = NULL;
@@ -247,6 +264,14 @@ INT32 main(INT32 argc, CHAR *argv[])
                                                                 NULL,
                                                                 TRUE,
                                                                 &pClientCallbacks));
+
+    PlatformCallbacks myLoggerPlatformCallbacks;
+    MEMSET(&myLoggerPlatformCallbacks, 0x00, SIZEOF(PlatformCallbacks));
+    myLoggerPlatformCallbacks.customData = (UINT64) NULL;
+    myLoggerPlatformCallbacks.version = PLATFORM_CALLBACKS_CURRENT_VERSION;
+    myLoggerPlatformCallbacks.logPrintFn = myLoggerLogPrintFn;
+    CHK_STATUS(setPlatformCallbacks(pClientCallbacks, &myLoggerPlatformCallbacks));
+
 
     CHK_STATUS(createKinesisVideoClient(pDeviceInfo, pClientCallbacks, &clientHandle));
     CHK_STATUS(createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
