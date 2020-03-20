@@ -57,6 +57,9 @@ INT32 main(INT32 argc, CHAR *argv[])
     UINT32 frameSize = SIZEOF(frameBuffer), frameIndex = 0, fileIndex = 0;
     UINT64 streamStopTime, streamingDuration = DEFAULT_STREAM_DURATION;
 
+    StreamMetrics streamMetrics;
+    streamMetrics.version = STREAM_METRICS_CURRENT_VERSION;
+
     if (argc < 2) {
         defaultLogPrint(LOG_LEVEL_ERROR, "", "Usage: AWS_ACCESS_KEY_ID=SAMPLEKEY AWS_SECRET_ACCESS_KEY=SAMPLESECRET %s <stream_name> <duration_in_seconds> <frame_files_path>\n", argv[0]);
         CHK(FALSE, STATUS_INVALID_ARG);
@@ -92,7 +95,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     // default storage size is 128MB. Use setDeviceInfoStorageSize after create to change storage size.
     CHK_STATUS(createDefaultDeviceInfo(&pDeviceInfo));
     // adjust members of pDeviceInfo here if needed
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_INFO;
     pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
     CHK_STATUS(createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo));
@@ -126,6 +129,9 @@ INT32 main(INT32 argc, CHAR *argv[])
         frame.index = frameIndex;
         frame.flags = fileIndex % DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
         frame.size = SIZEOF(frameBuffer);
+
+        getKinesisVideoStreamMetrics(streamHandle, &streamMetrics);
+        printf("put frame rate in bytes per second %f KB \n", streamMetrics.currentFrameRate);
 
         CHK_STATUS(readFrameData(&frame, frameFilePath));
 
