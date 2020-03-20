@@ -92,7 +92,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     // default storage size is 128MB. Use setDeviceInfoStorageSize after create to change storage size.
     CHK_STATUS(createDefaultDeviceInfo(&pDeviceInfo));
     // adjust members of pDeviceInfo here if needed
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_VERBOSE;
     pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
     CHK_STATUS(createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo));
@@ -128,6 +128,16 @@ INT32 main(INT32 argc, CHAR *argv[])
         frame.size = SIZEOF(frameBuffer);
 
         CHK_STATUS(readFrameData(&frame, frameFilePath));
+
+
+    DLOGV("debug frame info pts: %" PRIu64 ", dts: %" PRIu64 ", duration: %" PRIu64 ", size: %u, trackId: %" PRIu64 ", isKey %d",
+          frame.presentationTs,
+          frame.decodingTs,
+          frame.duration,
+          frame.size,
+          frame.trackId,
+          CHECK_FRAME_FLAG_KEY_FRAME(frame.flags)
+    );
 
         CHK_STATUS(putKinesisVideoFrame(streamHandle, &frame));
         defaultThreadSleep(frame.duration);
