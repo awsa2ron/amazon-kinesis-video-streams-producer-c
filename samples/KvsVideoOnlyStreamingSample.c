@@ -54,8 +54,7 @@ STATUS myFragmentAckReceivedFn(UINT64 customData,
     // not logging anything as the same thing is being logged in curlCallbackProvider.
     static UINT64 persistFrames = 0;
     persistFrames++;
-    printf("%d frames have persisted by kvs cloud server.\n", persistFrames);
-
+    defaultLogPrint(LOG_LEVEL_INFO, "", "%d frames have persisted by kvs cloud server.", persistFrames);
 
     return STATUS_SUCCESS;
 }
