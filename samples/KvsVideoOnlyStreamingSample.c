@@ -42,11 +42,30 @@ CleanUp:
 // Forward declaration of the default thread sleep function
 VOID defaultThreadSleep(UINT64);
 
+STATUS myFragmentAckReceivedFn(UINT64 customData,
+                                          STREAM_HANDLE streamHandle,
+                                          UPLOAD_HANDLE uploadHandle,
+                                          PFragmentAck pFragmentAck)
+{
+    UNUSED_PARAM(customData);
+    UNUSED_PARAM(streamHandle);
+    UNUSED_PARAM(uploadHandle);
+    UNUSED_PARAM(pFragmentAck);
+    // not logging anything as the same thing is being logged in curlCallbackProvider.
+    static UINT64 persistFrames = 0;
+    persistFrames++;
+    printf("%d frames have persisted by kvs cloud server.\n", persistFrames);
+
+
+    return STATUS_SUCCESS;
+}
+
 INT32 main(INT32 argc, CHAR *argv[])
 {
     PDeviceInfo pDeviceInfo = NULL;
     PStreamInfo pStreamInfo = NULL;
     PClientCallbacks pClientCallbacks = NULL;
+    PStreamCallbacks pStreamCallbacks = NULL;
     CLIENT_HANDLE clientHandle = INVALID_CLIENT_HANDLE_VALUE;
     STREAM_HANDLE streamHandle = INVALID_STREAM_HANDLE_VALUE;
     STATUS retStatus = STATUS_SUCCESS;
@@ -92,7 +111,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     // default storage size is 128MB. Use setDeviceInfoStorageSize after create to change storage size.
     CHK_STATUS(createDefaultDeviceInfo(&pDeviceInfo));
     // adjust members of pDeviceInfo here if needed
-    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_INFO;
     pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
     CHK_STATUS(createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo));
@@ -109,6 +128,15 @@ INT32 main(INT32 argc, CHAR *argv[])
                                                                 NULL,
                                                                 TRUE,
                                                                 &pClientCallbacks));
+    
+    StreamCallbacks myFragmentAckReceivedCallback;
+    MEMSET(&myFragmentAckReceivedCallback, 0x00, SIZEOF(PlatformCallbacks));
+    myFragmentAckReceivedCallback.customData = (UINT64) NULL;
+    myFragmentAckReceivedCallback.version = PLATFORM_CALLBACKS_CURRENT_VERSION;
+    myFragmentAckReceivedCallback.fragmentAckReceivedFn = myFragmentAckReceivedFn;
+    //CHK_STATUS(createStreamCallbacks(&pStreamCallbacks));
+    CHK_STATUS(addStreamCallbacks(pClientCallbacks, &myFragmentAckReceivedCallback));
+
 
     CHK_STATUS(createKinesisVideoClient(pDeviceInfo, pClientCallbacks, &clientHandle));
     CHK_STATUS(createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
