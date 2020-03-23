@@ -50,11 +50,13 @@ STATUS myFragmentAckReceivedFn(UINT64 customData,
     UNUSED_PARAM(customData);
     UNUSED_PARAM(streamHandle);
     UNUSED_PARAM(uploadHandle);
-    UNUSED_PARAM(pFragmentAck);
-    // not logging anything as the same thing is being logged in curlCallbackProvider.
-    static UINT64 persistFrames = 0;
-    persistFrames++;
-    defaultLogPrint(LOG_LEVEL_INFO, "", "%d frames have persisted by kvs cloud server.", persistFrames);
+    //UNUSED_PARAM(pFragmentAck);
+    if(pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED)
+    {
+        static UINT64 persistFrames = 0;
+        persistFrames++;
+        defaultLogPrint(LOG_LEVEL_INFO, "", "%d frames have persisted by kvs cloud server.", persistFrames);
+    }
 
     return STATUS_SUCCESS;
 }
