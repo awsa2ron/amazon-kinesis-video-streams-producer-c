@@ -133,9 +133,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     myFragmentAckReceivedCallback.customData = (UINT64) NULL;
     myFragmentAckReceivedCallback.version = PLATFORM_CALLBACKS_CURRENT_VERSION;
     myFragmentAckReceivedCallback.fragmentAckReceivedFn = myFragmentAckReceivedFn;
-    //CHK_STATUS(createStreamCallbacks(&pStreamCallbacks));
     CHK_STATUS(addStreamCallbacks(pClientCallbacks, &myFragmentAckReceivedCallback));
-
 
     CHK_STATUS(createKinesisVideoClient(pDeviceInfo, pClientCallbacks, &clientHandle));
     CHK_STATUS(createKinesisVideoStreamSync(clientHandle, pStreamInfo, &streamHandle));
