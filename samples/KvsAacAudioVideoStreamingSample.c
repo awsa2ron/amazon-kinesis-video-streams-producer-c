@@ -44,9 +44,9 @@ PVOID putVideoFrameRoutine(PVOID args)
     frame.size = data->videoFrames[fileIndex].size;
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
-    frame.duration = 0;
-    frame.decodingTs = 0;
-    frame.presentationTs = 0;
+    frame.duration = SAMPLE_VIDEO_FRAME_DURATION;
+    frame.decodingTs = defaultGetTime();
+    frame.presentationTs = frame.decodingTs;
     frame.index = 0;
 
     // video track is used to mark new fragment. A new fragment is generated for every frame with FRAME_FLAG_KEY_FRAME
@@ -60,7 +60,7 @@ PVOID putVideoFrameRoutine(PVOID args)
             status = STATUS_SUCCESS;
         }
 
-        frame.presentationTs += SAMPLE_VIDEO_FRAME_DURATION;
+        frame.presentationTs += frame.duration;
         frame.decodingTs = frame.presentationTs;
         frame.index++;
 
@@ -69,12 +69,7 @@ PVOID putVideoFrameRoutine(PVOID args)
         frame.frameData = data->videoFrames[fileIndex].buffer;
         frame.size = data->videoFrames[fileIndex].size;
 
-        // synchronize putKinesisVideoFrame to running time
-        runningTime = defaultGetTime() - data->streamStartTime;
-        if (runningTime < frame.presentationTs) {
-            // reduce sleep time a little for smoother video
-            THREAD_SLEEP((frame.presentationTs - runningTime) * 0.9);
-        }
+        defaultThreadSleep(frame.duration);
     }
 
 CleanUp:
@@ -101,9 +96,9 @@ PVOID putAudioFrameRoutine(PVOID args)
     frame.size = data->audioFrames[fileIndex].size;
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_AUDIO_TRACK_ID;
-    frame.duration = 0;
-    frame.decodingTs = 0; // relative time mode
-    frame.presentationTs = 0; // relative time mode
+    frame.duration = SAMPLE_AUDIO_FRAME_DURATION;
+    frame.decodingTs = defaultGetTime(); // relative time mode
+    frame.presentationTs = frame.decodingTs; // relative time mode
     frame.index = 0;
     frame.flags = FRAME_FLAG_NONE; // audio track is not used to cut fragment
 
@@ -116,7 +111,7 @@ PVOID putAudioFrameRoutine(PVOID args)
                 status = STATUS_SUCCESS;
             }
 
-            frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
+            frame.presentationTs += frame.duration;
             frame.decodingTs = frame.presentationTs;
             frame.index++;
 
@@ -124,11 +119,7 @@ PVOID putAudioFrameRoutine(PVOID args)
             frame.frameData = data->audioFrames[fileIndex].buffer;
             frame.size = data->audioFrames[fileIndex].size;
 
-            // synchronize putKinesisVideoFrame to running time
-            runningTime = defaultGetTime() - data->streamStartTime;
-            if (runningTime < frame.presentationTs) {
-                THREAD_SLEEP(frame.presentationTs - runningTime);
-            }
+            defaultThreadSleep(frame.duration);
         }
     }
 
@@ -236,7 +227,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     CHK_STATUS(mkvgenGenerateAacCpd(AAC_LC, AUDIO_TRACK_SAMPLING_RATE, AUDIO_TRACK_CHANNEL_CONFIG, pAudioTrack->codecPrivateData, &pAudioTrack->codecPrivateDataSize));
 
     // use relative time mode. Buffer timestamps start from 0
-    pStreamInfo->streamCaps.absoluteFragmentTimes = FALSE;
+    pStreamInfo->streamCaps.absoluteFragmentTimes = TRUE;
 
     CHK_STATUS(createDefaultCallbacksProviderWithAwsCredentials(accessKey,
                                                                 secretKey,
