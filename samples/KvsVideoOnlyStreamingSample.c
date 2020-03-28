@@ -94,6 +94,8 @@ INT32 main(INT32 argc, CHAR *argv[])
     CHK_STATUS(createDefaultDeviceInfo(&pDeviceInfo));
     // adjust members of pDeviceInfo here if needed
     pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->clientInfo.stopStreamTimeout = 5 * HUNDREDS_OF_NANOS_IN_A_SECOND;
+
     pDeviceInfo->storageInfo.storageSize = DEFAULT_STORAGE_SIZE;
 
     CHK_STATUS(createRealtimeVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo));
