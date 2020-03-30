@@ -42,6 +42,26 @@ CleanUp:
 // Forward declaration of the default thread sleep function
 VOID defaultThreadSleep(UINT64);
 
+STATUS myDroppedFrameReportCallback(UINT64 customData,
+                                         STREAM_HANDLE streamHandle,
+                                         UINT64 frameTimecode)
+{
+    UNUSED_PARAM(customData);
+    DLOGD("Reported droppedFrame callback for stream handle %" PRIu64 ". Dropped frame timecode in 100ns: %" PRIu64,
+          streamHandle, frameTimecode);
+    return STATUS_SUCCESS;
+}
+
+STATUS myDroppedFragmentReportCallback(UINT64 customData,
+                                            STREAM_HANDLE streamHandle,
+                                            UINT64 fragmentTimeCode)
+{
+    UNUSED_PARAM(customData);
+    DLOGD("Reported droppedFragment callback for stream handle %" PRIu64 ". Dropped fragment timecode in 100ns: %" PRIu64,
+          streamHandle, fragmentTimeCode);
+    return STATUS_SUCCESS;
+}
+
 INT32 main(INT32 argc, CHAR *argv[])
 {
     PDeviceInfo pDeviceInfo = NULL;
@@ -111,6 +131,9 @@ INT32 main(INT32 argc, CHAR *argv[])
                                                                 TRUE,
                                                                 &pClientCallbacks));
     CHK_STATUS(createStreamCallbacks(&pStreamCallbacks));
+    pStreamCallbacks->droppedFrameReportFn = myDroppedFrameReportCallback;
+    pStreamCallbacks->droppedFragmentReportFn = myDroppedFragmentReportCallback;
+
     CHK_STATUS(addStreamCallbacks(pClientCallbacks, pStreamCallbacks));
 
     CHK_STATUS(createKinesisVideoClient(pDeviceInfo, pClientCallbacks, &clientHandle));
