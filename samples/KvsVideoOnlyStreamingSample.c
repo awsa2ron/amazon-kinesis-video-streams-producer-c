@@ -42,6 +42,19 @@ CleanUp:
 // Forward declaration of the default thread sleep function
 VOID defaultThreadSleep(UINT64);
 
+STATUS myStreamErrorReportCallback(UINT64 customData,
+                                        STREAM_HANDLE streamHandle,
+                                        UPLOAD_HANDLE uploadHandle,
+                                        UINT64 fragmentTimecode,
+                                        STATUS errorStatus)
+{
+    UNUSED_PARAM(customData);
+    DLOGD("Reported streamError callback for stream handle %" PRIu64 ". Upload handle %" PRIu64 ". Fragment timecode in"
+                  " 100ns: %" PRIu64 ". Error status: 0x%08x" ,
+          streamHandle, uploadHandle, fragmentTimecode, errorStatus);
+    return STATUS_SUCCESS;
+}
+
 INT32 main(INT32 argc, CHAR *argv[])
 {
     PDeviceInfo pDeviceInfo = NULL;
@@ -111,6 +124,7 @@ INT32 main(INT32 argc, CHAR *argv[])
                                                                 TRUE,
                                                                 &pClientCallbacks));
     CHK_STATUS(createStreamCallbacks(&pStreamCallbacks));
+    pStreamCallbacks->streamErrorReportFn = myStreamErrorReportCallback;
     CHK_STATUS(addStreamCallbacks(pClientCallbacks, pStreamCallbacks));
 
     CHK_STATUS(createKinesisVideoClient(pDeviceInfo, pClientCallbacks, &clientHandle));
