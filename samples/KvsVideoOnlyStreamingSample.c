@@ -55,7 +55,8 @@ STATUS myFragmentAckReceivedFn(UINT64 customData,
     {
         static UINT64 persistFrames = 0;
         persistFrames++;
-        defaultLogPrint(LOG_LEVEL_INFO, "", "%d frames have persisted by kvs cloud server.", persistFrames);
+        defaultLogPrint(LOG_LEVEL_INFO, "", "Total %d frames have persisted, latest one start from %d", \
+                                                persistFrames, pFragmentAck->timestamp);
     }
 
     return STATUS_SUCCESS;
