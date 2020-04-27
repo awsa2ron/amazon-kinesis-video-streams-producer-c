@@ -106,9 +106,28 @@ STATUS ProducerClientTestBase::testFragmentAckReceivedFunc(UINT64 customData,
     ProducerClientTestBase* pTest = (ProducerClientTestBase*) customData;
 
     MUTEX_LOCK(pTest->mTestCallbackLock);
-    if (pFragmentAck->ackType == FRAGMENT_ACK_TYPE_PERSISTED) {
-        pTest->mPersistedFragmentCount++;
+    switch (pFragmentAck->ackType) {
+        case FRAGMENT_ACK_TYPE_PERSISTED:
+            pTest->mLastPersistedAckTimestamp = pFragmentAck->timestamp;
+            pTest->mPersistedFragmentCount++;
+            break;
+
+        case FRAGMENT_ACK_TYPE_BUFFERING:
+            pTest->mLastBufferingAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        case FRAGMENT_ACK_TYPE_RECEIVED:
+            pTest->mLastReceivedAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        case FRAGMENT_ACK_TYPE_ERROR:
+            pTest->mLastErrorAckTimestamp = pFragmentAck->timestamp;
+            break;
+
+        default:
+            break;
     }
+
     pTest->mFragmentAckReceivedFnCount++;
     MUTEX_UNLOCK(pTest->mTestCallbackLock);
 
@@ -321,6 +340,10 @@ ProducerClientTestBase::ProducerClientTestBase() :
     mStreamReadyFnCount = 0;
     mStreamClosedFnCount = 0;
     mPersistedFragmentCount = 0;
+    mLastBufferingAckTimestamp = 0;
+    mLastErrorAckTimestamp = 0;
+    mLastReceivedAckTimestamp = 0;
+    mLastPersistedAckTimestamp = 0;
     mStorageOverflowCount = 0;
 
     mAbortUploadhandle = INVALID_UPLOAD_HANDLE_VALUE;
@@ -364,10 +387,17 @@ VOID ProducerClientTestBase::handlePressure(volatile BOOL* pressureFlag, UINT32 
 
 VOID ProducerClientTestBase::createDefaultProducerClient(BOOL cachingEndpoint, UINT64 createStreamTimeout, BOOL continuousRetry)
 {
+    createDefaultProducerClient(cachingEndpoint ? API_CALL_CACHE_TYPE_ENDPOINT_ONLY : API_CALL_CACHE_TYPE_NONE,
+            createStreamTimeout,
+            continuousRetry);
+}
+
+VOID ProducerClientTestBase::createDefaultProducerClient(API_CALL_CACHE_TYPE cacheType, UINT64 createStreamTimeout, BOOL continuousRetry)
+{
     PAuthCallbacks pAuthCallbacks;
     PStreamCallbacks pStreamCallbacks;
     EXPECT_EQ(STATUS_SUCCESS, createAbstractDefaultCallbacksProvider(TEST_DEFAULT_CHAIN_COUNT,
-                                                                     cachingEndpoint,
+                                                                     cacheType,
                                                                      TEST_CACHING_ENDPOINT_PERIOD,
                                                                      mRegion,
                                                                      TEST_CONTROL_PLANE_URI,
@@ -514,6 +544,8 @@ STATUS ProducerClientTestBase::curlEasyPerformHookFunc(PCurlResponse pCurlRespon
 
     // Get the test object
     ProducerClientTestBase* pTest = (ProducerClientTestBase*) pCurlResponse->pCurlRequest->pCurlApiCallbacks->hookCustomData;
+
+    DLOGV("Curl perform hook for %s", pCurlResponse->pCurlRequest->requestInfo.url);
 
     pTest->mEasyPerformFnCount++;
 
