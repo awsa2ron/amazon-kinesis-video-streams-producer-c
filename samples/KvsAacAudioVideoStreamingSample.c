@@ -14,6 +14,7 @@
 #define NUMBER_OF_H264_FRAME_FILES          403
 #define NUMBER_OF_AAC_FRAME_FILES           582
 
+#define WALL_TIME   1588002631
 typedef struct {
     PBYTE buffer;
     UINT32 size;
@@ -45,7 +46,7 @@ PVOID putVideoFrameRoutine(PVOID args)
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
     frame.duration = SAMPLE_VIDEO_FRAME_DURATION;
-    frame.decodingTs = defaultGetTime();
+    frame.decodingTs = WALL_TIME; 
     frame.presentationTs = frame.decodingTs;
     frame.index = 0;
 
@@ -97,7 +98,7 @@ PVOID putAudioFrameRoutine(PVOID args)
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_AUDIO_TRACK_ID;
     frame.duration = SAMPLE_AUDIO_FRAME_DURATION;
-    frame.decodingTs = defaultGetTime(); // relative time mode
+    frame.decodingTs = WALL_TIME; 
     frame.presentationTs = frame.decodingTs; // relative time mode
     frame.index = 0;
     frame.flags = FRAME_FLAG_NONE; // audio track is not used to cut fragment
