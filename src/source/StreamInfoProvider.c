@@ -77,6 +77,21 @@ STATUS createH264VideoTrackInfo(PTrackInfo pTrackInfo)
     return retStatus;
 }
 
+// Creates H265 track info for video
+STATUS createH265VideoTrackInfo(PTrackInfo pTrackInfo)
+{
+    STATUS retStatus = STATUS_SUCCESS;
+
+    pTrackInfo->trackId = DEFAULT_VIDEO_TRACK_ID;
+    pTrackInfo->codecPrivateData = NULL;
+    pTrackInfo->codecPrivateDataSize = 0;
+    STRCPY(pTrackInfo->codecId, MKV_H265_HEVC_CODEC_ID);
+    STRCPY(pTrackInfo->trackName, DEFAULT_VIDEO_TRACK_NAME);
+    pTrackInfo->trackType = MKV_TRACK_INFO_TYPE_VIDEO;
+
+    return retStatus;
+}
+
 // Creates AAC track info for audio
 STATUS createAacAudioTrackInfo(PTrackInfo pTrackInfo)
 {
@@ -156,10 +171,10 @@ STATUS createVideoStreamInfo(STREAMING_TYPE streamingType, PCHAR streamName,
     PTrackInfo pTrackInfo = NULL;
     pTrackInfo = (PTrackInfo) (pStreamInfo + 1);
 
-    CHK_STATUS(createH264VideoTrackInfo(pTrackInfo));
+    CHK_STATUS(createH265VideoTrackInfo(pTrackInfo));
 
     STRCPY(pStreamInfo->name, streamName);
-    STRCPY(pStreamInfo->streamCaps.contentType, MKV_H264_CONTENT_TYPE);
+    STRCPY(pStreamInfo->streamCaps.contentType, MKV_H265_CONTENT_TYPE);
     CHK_STATUS(setStreamInfoDefaults(streamingType, retention, bufferDuration, VIDEO_ONLY_TRACK_COUNT,
                                      pStreamInfo, pTrackInfo));
 
