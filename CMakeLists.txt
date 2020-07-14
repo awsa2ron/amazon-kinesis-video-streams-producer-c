@@ -271,7 +271,7 @@ if(BUILD_COMMON_CURL)
     if (WIN32)
       add_library(cproducer STATIC ${PRODUCER_C_SOURCE_FILES})
     else()
-      add_library(cproducer SHARED ${PRODUCER_C_SOURCE_FILES})
+      add_library(cproducer STATIC ${PRODUCER_C_SOURCE_FILES})
     endif()
     target_link_libraries(cproducer PUBLIC kvsCommonCurl kvspic)
 
