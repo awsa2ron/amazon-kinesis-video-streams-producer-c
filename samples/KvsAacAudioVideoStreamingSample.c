@@ -29,7 +29,7 @@ typedef struct {
     STREAM_HANDLE streamHandle;
     CHAR sampleDir[MAX_PATH_LEN + 1];
     FrameData audioFrames[NUMBER_OF_AAC_FRAME_FILES];
-    FrameData videoFrames[NUMBER_OF_H264_FRAME_FILES];
+    FrameData videoFrames;
 } SampleCustomData, *PSampleCustomData;
 
 PVOID putVideoFrameRoutine(PVOID args)
@@ -37,14 +37,21 @@ PVOID putVideoFrameRoutine(PVOID args)
     STATUS retStatus = STATUS_SUCCESS;
     PSampleCustomData data = (PSampleCustomData) args;
     Frame frame;
-    UINT32 fileIndex = 0;
+    static UINT32 videoFileIndex= 0;
     STATUS status;
-    UINT64 runningTime;
+    UINT64 runningTime, fileSize;
+    CHAR filePath[MAX_PATH_LEN + 1];
 
     CHK(data != NULL, STATUS_NULL_ARG);
 
-    frame.frameData = data->videoFrames[fileIndex].buffer;
-    frame.size = data->videoFrames[fileIndex].size;
+    SNPRINTF(filePath, MAX_PATH_LEN, "%s/h264SampleFrames/frame-%03d.h264", data->sampleDir, videoFileIndex+ 1);
+    CHK_STATUS(readFile(filePath, TRUE, NULL, &fileSize));
+    data->videoFrames.buffer = (PBYTE) MEMALLOC(fileSize);
+    data->videoFrames.size = fileSize;
+    CHK_STATUS(readFile(filePath, TRUE, data->videoFrames.buffer, &fileSize));
+
+    frame.frameData = data->videoFrames.buffer;
+    frame.size = data->videoFrames.size;
     frame.version = FRAME_CURRENT_VERSION;
     frame.trackId = DEFAULT_VIDEO_TRACK_ID;
     frame.duration = 0;
@@ -53,7 +60,7 @@ PVOID putVideoFrameRoutine(PVOID args)
     frame.index = 0;
 
     // video track is used to mark new fragment. A new fragment is generated for every frame with FRAME_FLAG_KEY_FRAME
-    frame.flags = fileIndex % DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+    frame.flags = videoFileIndex% DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
 
     while (defaultGetTime() < data->streamStopTime) {
         status = putKinesisVideoFrame(data->streamHandle, &frame);
@@ -67,10 +74,21 @@ PVOID putVideoFrameRoutine(PVOID args)
         frame.decodingTs = frame.presentationTs;
         frame.index++;
 
-        fileIndex = (fileIndex + 1) % NUMBER_OF_H264_FRAME_FILES;
-        frame.flags = fileIndex % DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
-        frame.frameData = data->videoFrames[fileIndex].buffer;
-        frame.size = data->videoFrames[fileIndex].size;
+        //videoFileIndex= (videoFileIndex+ 1) % NUMBER_OF_H264_FRAME_FILES;
+        if(videoFileIndex == NUMBER_OF_H264_FRAME_FILES)
+            videoFileIndex = 0;
+        videoFileIndex++;
+        frame.flags = videoFileIndex% DEFAULT_KEY_FRAME_INTERVAL == 0 ? FRAME_FLAG_KEY_FRAME : FRAME_FLAG_NONE;
+
+        SAFE_MEMFREE(data->videoFrames.buffer);
+        SNPRINTF(filePath, MAX_PATH_LEN, "%s/h264SampleFrames/frame-%03d.h264", data->sampleDir,videoFileIndex);
+        CHK_STATUS(readFile(filePath, TRUE, NULL, &fileSize));
+        data->videoFrames.buffer = (PBYTE) MEMALLOC(fileSize);
+        data->videoFrames.size = fileSize;
+        CHK_STATUS(readFile(filePath, TRUE, data->videoFrames.buffer, &fileSize));
+
+        frame.frameData = data->videoFrames.buffer;
+        frame.size = data->videoFrames.size;
 
         // synchronize putKinesisVideoFrame to running time
         runningTime = defaultGetTime() - data->streamStartTime;
@@ -158,10 +176,10 @@ INT32 main(INT32 argc, CHAR *argv[])
     TID audioSendTid, videoSendTid;
     SampleCustomData data;
     UINT32 i;
-    CHAR filePath[MAX_PATH_LEN + 1];
     PTrackInfo pAudioTrack = NULL;
     BYTE audioCpd[KVS_AAC_CPD_SIZE_BYTE];
 
+    CHAR filePath[MAX_PATH_LEN + 1];
     MEMSET(&data, 0x00, SIZEOF(SampleCustomData));
 
     if (argc < 2) {
@@ -194,15 +212,6 @@ INT32 main(INT32 argc, CHAR *argv[])
     }
     printf("Done loading audio frames.\n");
 
-    printf("Loading video frames...\n");
-    for(i = 0; i < NUMBER_OF_H264_FRAME_FILES; ++i) {
-        SNPRINTF(filePath, MAX_PATH_LEN, "%s/h264SampleFrames/frame-%03d.h264", data.sampleDir, i + 1);
-        CHK_STATUS(readFile(filePath, TRUE, NULL, &fileSize));
-        data.videoFrames[i].buffer = (PBYTE) MEMALLOC(fileSize);
-        data.videoFrames[i].size = fileSize;
-        CHK_STATUS(readFile(filePath, TRUE, data.videoFrames[i].buffer, &fileSize));
-    }
-    printf("Done loading video frames.\n");
 
     cacertPath = getenv(CACERT_PATH_ENV_VAR);
     sessionToken = getenv(SESSION_TOKEN_ENV_VAR);
@@ -224,6 +233,7 @@ INT32 main(INT32 argc, CHAR *argv[])
     CHK_STATUS(createDefaultDeviceInfo(&pDeviceInfo));
     // adjust members of pDeviceInfo here if needed
     pDeviceInfo->clientInfo.loggerLogLevel = LOG_LEVEL_DEBUG;
+    pDeviceInfo->storageInfo.storageSize = 2 * 1024 * 1024;
 
     CHK_STATUS(createRealtimeAudioVideoStreamInfoProvider(streamName, DEFAULT_RETENTION_PERIOD, DEFAULT_BUFFER_DURATION, &pStreamInfo));
 
@@ -294,9 +304,6 @@ CleanUp:
         SAFE_MEMFREE(data.audioFrames[i].buffer);
     }
 
-    for(i = 0; i < NUMBER_OF_H264_FRAME_FILES; ++i) {
-        SAFE_MEMFREE(data.videoFrames[i].buffer);
-    }
     freeDeviceInfo(&pDeviceInfo);
     freeStreamInfoProvider(&pStreamInfo);
     freeKinesisVideoStream(&streamHandle);
